@@ -72,14 +72,36 @@ async handleLiffQueryParams() {
             // รอให้ main app โหลดเสร็จก่อน
             await this.waitForMainAppReady();
             
-            // เปิดข่าวที่ระบุ
-            if (window.openNewsletterModal) {
-                await window.openNewsletterModal(articleId);
+            // 🆕 โหลดข้อมูลข่าวก่อนเปิด modal
+            try {
+                const newsletter = await this.loadNewsletterForLiff(articleId);
                 
-                // แสดง toast notification
-                this.showSuccess('เปิดข่าวสารจาก LINE สำเร็จ');
-            } else {
-                console.error('openNewsletterModal function not available');
+                if (newsletter) {
+                    // เซ็ต current newsletter ก่อนเปิด modal
+                    this.setCurrentNewsletter(newsletter);
+                    
+                    // เปิด modal
+                    if (window.openNewsletterModal) {
+                        await window.openNewsletterModal(articleId);
+                        
+                        // แสดง toast notification
+                        this.showSuccess('เปิดข่าวสารจาก LINE สำเร็จ');
+                        
+                        // 🆕 อัพเดตปุ่มแชร์หลังเปิด modal
+                        setTimeout(() => {
+                            this.updateShareButtonVisibility();
+                        }, 500);
+                        
+                    } else {
+                        console.error('openNewsletterModal function not available');
+                    }
+                } else {
+                    this.showError('ไม่พบข่าวสารที่เลือก');
+                }
+                
+            } catch (error) {
+                console.error('Failed to load newsletter for LIFF:', error);
+                this.showError('ไม่สามารถโหลดข่าวสารได้');
             }
         }
 
@@ -89,16 +111,49 @@ async handleLiffQueryParams() {
     }
 }
 
+// 🆕 เพิ่มฟังก์ชันโหลดข่าวสำหรับ LIFF
+async loadNewsletterForLiff(newsletterId) {
+    try {
+        console.log('Loading newsletter for LIFF:', newsletterId);
+        
+        // ใช้ apiCall หรือ apiCallCached จาก main script
+        if (window.apiCall) {
+            return await window.apiCall('getNewsletter', { id: newsletterId });
+        } else if (window.apiCallCached) {
+            return await window.apiCallCached('getNewsletter', { id: newsletterId });
+        } else {
+            console.error('API functions not available');
+            return null;
+        }
+    } catch (error) {
+        console.error('Load newsletter for LIFF error:', error);
+        return null;
+    }
+}
+
     // รอให้ main application พร้อม
 async waitForMainAppReady() {
     return new Promise((resolve) => {
+        let attempts = 0;
+        const maxAttempts = 40; // รอสูงสุด 20 วินาที
+        
         const checkReady = () => {
-            if (window.openNewsletterModal && window.allNewsletters && window.allNewsletters.length > 0) {
+            attempts++;
+            
+            // เช็คว่า functions และ data พร้อมหรือไม่
+            const isReady = window.openNewsletterModal && 
+                           (window.apiCall || window.apiCallCached) &&
+                           (window.allNewsletters || attempts > 20); // ถ้ารอนานเกินไปให้ข้ามไป
+            
+            if (isReady || attempts >= maxAttempts) {
+                console.log(`📱 Main app ready after ${attempts} attempts`);
                 resolve();
             } else {
+                console.log(`⏳ Waiting for main app... (${attempts}/${maxAttempts})`);
                 setTimeout(checkReady, 500); // เช็คทุก 500ms
             }
         };
+        
         checkReady();
     });
 }
@@ -231,7 +286,10 @@ async handleLoginSuccess() {
         // Update UI
         this.showUserProfile();
         
-        // 🆕 เพิ่มการจัดการ query parameters หลัง login สำเร็จ
+        // 🆕 อัพเดตปุ่มแชร์หลัง login สำเร็จ
+        this.updateShareButtonVisibility();
+        
+        // จัดการ query parameters หลัง login สำเร็จ
         await this.handleLiffQueryParams();
         
     } catch (error) {
@@ -239,7 +297,6 @@ async handleLoginSuccess() {
         this.showError('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
     }
 }
-
     // Handle initialization error
     handleInitError(error) {
         console.error('LIFF init error:', error);
@@ -252,19 +309,40 @@ async handleLoginSuccess() {
     }
 
     // Set current newsletter for sharing
-    setCurrentNewsletter(newsletter) {
-        this.currentNewsletter = newsletter;
-        
-        // Show/hide share button based on LINE login status
-        const shareBtn = document.getElementById('share-newsletter-btn');
-        if (shareBtn) {
-            if (this.isInitialized && liff.isLoggedIn()) {
-                shareBtn.classList.remove('hidden');
-            } else {
-                shareBtn.classList.add('hidden');
+setCurrentNewsletter(newsletter) {
+    this.currentNewsletter = newsletter;
+    console.log('📄 Current newsletter set for sharing:', newsletter.title);
+    
+    // อัพเดตปุ่มแชร์ทันที
+    this.updateShareButtonVisibility();
+}
+
+    // 🆕 เพิ่มฟังก์ชันอัพเดตปุ่มแชร์
+updateShareButtonVisibility() {
+    const shareBtn = document.getElementById('share-newsletter-btn');
+    
+    if (shareBtn) {
+        if (this.isLoggedIn() && this.currentNewsletter) {
+            // แสดงปุ่มแชร์
+            shareBtn.classList.remove('hidden');
+            shareBtn.style.display = 'inline-flex';
+            console.log('✅ Share button is now visible');
+        } else {
+            // ซ่อนปุ่มแชร์
+            shareBtn.classList.add('hidden');
+            shareBtn.style.display = 'none';
+            
+            if (!this.isLoggedIn()) {
+                console.log('❌ Share button hidden: Not logged in');
+            }
+            if (!this.currentNewsletter) {
+                console.log('❌ Share button hidden: No newsletter set');
             }
         }
+    } else {
+        console.warn('⚠️ Share button element not found');
     }
+}
 
     // Open share modal
     openShareModal() {
