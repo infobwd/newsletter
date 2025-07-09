@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ข่าวสารสถานศึกษา</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="line-integration.css">
+    <!-- LINE LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="text-white">
+            <i class="fas fa-spinner fa-spin fa-3x mb-4"></i>
+            <div id="loading-text" class="text-lg">กำลังโหลด...</div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <img src="https://img5.pic.in.th/file/secure-sv1/-3D-b457e152b77f227d.png" class="h-12 mr-3" alt="โลโก้โรงเรียน" />
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">ข่าวสารสถานศึกษา</h1>
+                        <p class="text-sm text-gray-600">ติดตามข่าวสารและกิจกรรมของโรงเรียน</p>
+                    </div>
+                </div>
+                
+                <!-- LINE Login Section -->
+                <div id="line-auth-section" class="flex items-center">
+                    <!-- Login Button (when not logged in) -->
+                    <button id="line-login-btn" class="line-login-btn hidden">
+                        <i class="fab fa-line mr-2"></i>
+                        เข้าสู่ระบบด้วย LINE
+                    </button>
+                    
+                    <!-- User Profile (when logged in) -->
+                    <div id="line-user-profile" class="line-user-profile hidden">
+                        <div class="flex items-center space-x-3">
+                            <img id="user-avatar" src="" alt="User Avatar" class="user-avatar">
+                            <div>
+                                <div id="user-name" class="user-name"></div>
+                                <div class="text-xs text-gray-500">LINE User</div>
+                            </div>
+                            <button id="line-logout-btn" class="line-logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="container mx-auto px-4">
+                <h2 class="text-4xl font-bold mb-4">ข่าวสารและกิจกรรม</h2>
+                <p class="text-xl opacity-90 mb-8">อัพเดทข่าวสารใหม่ๆ ของโรงเรียนทุกวัน</p>
+                <div class="flex justify-center">
+                    <button id="scroll-to-news" class="bg-white text-blue-600 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition">
+                        <i class="fas fa-arrow-down mr-2"></i> ดูข่าวสาร
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8" id="main-content">
+        <!-- Search and Filters -->
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">ค้นหาข่าวสาร</label>
+                  <div class="relative">
+                      <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                      <input type="text" id="search-input" placeholder="ค้นหาจากหัวข้อหรือเนื้อหา..." 
+                             class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  </div>
+              </div>
+
+              <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">หมวดหมู่</label>
+                  <select id="category-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                      <option value="">ทุกหมวดหมู่</option>
+                  </select>
+              </div>
+
+              <!-- ⭐ เพิ่ม Tag Filter -->
+              <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">แท็ก</label>
+                  <select id="tag-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                      <option value="">ทุกแท็ก</option>
+                  </select>
+              </div>
+
+              <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">เรียงตาม</label>
+                  <select id="sort-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                      <option value="newest">ใหม่ล่าสุด</option>
+                      <option value="oldest">เก่าสุด</option>
+                      <option value="views">ยอดดูมากสุด</option>
+                      <option value="featured">ข่าวเด่นก่อน</option>
+                  </select>
+              </div>
+          </div>
+
+        <!-- Error Message -->
+        <div id="error-message" class="hidden error-message">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <span id="error-text">เกิดข้อผิดพลาดในการโหลดข้อมูล</span>
+        </div>
+
+        <!-- Featured News Section -->
+        <div id="featured-section" class="mb-8 hidden">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-star text-yellow-500 mr-2"></i> ข่าวเด่น
+            </h3>
+            <div id="featured-newsletters" class="newsletter-grid">
+                <!-- Featured newsletters will be loaded here -->
+            </div>
+        </div>
+
+        <!-- All News Section -->
+        <div id="all-news-section">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-newspaper text-blue-600 mr-2"></i> ข่าวสารทั้งหมด
+            </h3>
+            <div id="newsletters-container" class="newsletter-grid">
+                <!-- All newsletters will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination-container" class="flex justify-center mt-8">
+            <!-- Pagination will be generated here -->
+        </div>
+
+        <!-- No Results -->
+        <div id="no-results" class="text-center py-12 hidden">
+            <i class="fas fa-search text-gray-300 text-6xl mb-4"></i>
+            <h3 class="text-xl text-gray-500 mb-2">ไม่พบข่าวสารที่ค้นหา</h3>
+            <p class="text-gray-400">ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น</p>
+        </div>
+    </div>
+
+    <!-- Newsletter Modal -->
+    <div id="newsletter-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl m-4 modal-content">
+            <div class="flex justify-between items-center p-6 border-b">
+                <h3 id="modal-title" class="text-2xl font-bold text-gray-800"></h3>
+                <div class="flex items-center space-x-3">
+                    <!-- Share Button -->
+                    <button id="share-newsletter-btn" class="share-newsletter-btn" title="แชร์ข่าวนี้">
+                        <i class="fas fa-share-alt mr-2"></i>
+                        <span class="hidden sm:inline">แชร์</span>
+                    </button>
+                    <button id="close-newsletter-modal" class="text-gray-500 hover:text-gray-700 text-2xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <div id="modal-content">
+                    <!-- Newsletter content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Options Modal -->
+    <div id="share-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md m-4">
+            <div class="p-6">
+                <h4 class="text-lg font-bold text-gray-800 mb-4 text-center">แชร์ข่าวนี้</h4>
+                <div class="space-y-3">
+                    <button id="share-line-chat" class="share-option-btn">
+                        <i class="fab fa-line text-green-500 text-xl mr-3"></i>
+                        แชร์ไปยังแชท LINE
+                    </button>
+                    <button id="share-line-timeline" class="share-option-btn">
+                        <i class="fas fa-clock text-green-500 text-xl mr-3"></i>
+                        แชร์ไปยังไทม์ไลน์ LINE
+                    </button>
+                    <button id="copy-link" class="share-option-btn">
+                        <i class="fas fa-copy text-blue-500 text-xl mr-3"></i>
+                        คัดลอกลิงก์
+                    </button>
+                </div>
+                <button id="close-share-modal" class="w-full mt-4 py-2 text-gray-500 hover:text-gray-700">
+                    ยกเลิก
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-16">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p>&copy; 2024 โรงเรียน. สงวนลิขสิทธิ์</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="hover:text-blue-400 transition">
+                        <i class="fab fa-facebook"></i> Facebook
+                    </a>
+                    <a href="#" class="hover:text-blue-400 transition">
+                        <i class="fab fa-line"></i> Line
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="line-integration.js"></script>
+</body>
+</html>
