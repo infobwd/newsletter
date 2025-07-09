@@ -1,0 +1,504 @@
+/* print.css - Print Optimization Styles */
+
+/* 🖨️ Print-Specific Styles */
+@media print {
+    /* ⚡ Performance & Memory Optimization */
+    * {
+        background: white !important;
+        color: black !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    /* 📄 Page Setup */
+    @page {
+        margin: 2cm;
+        size: A4;
+        color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    @page :first {
+        margin-top: 3cm;
+    }
+
+    /* 🔍 Base Print Styles */
+    body {
+        font-family: 'Sarabun', 'Prompt', serif;
+        font-size: 12pt;
+        line-height: 1.5;
+        color: black;
+        background: white;
+    }
+
+    /* 🚫 Hide Non-Essential Elements */
+    .loading-overlay,
+    .hero-section,
+    .search-filters,
+    #pagination-container,
+    .btn-primary,
+    .quick-share-btn,
+    .share-newsletter-btn,
+    .line-login-btn,
+    .line-user-profile,
+    .share-option-btn,
+    .featured-badge,
+    .line-toast,
+    .skeleton-card,
+    .image-placeholder,
+    .error-message,
+    .line-feature-badge,
+    .trending-indicator,
+    .high-share-badge,
+    .stat-item.shares,
+    .quick-share-btn,
+    #share-modal,
+    #newsletter-modal .flex.justify-between.items-center,
+    header nav,
+    footer,
+    .tag {
+        display: none !important;
+    }
+
+    /* 📰 Newsletter Cards for Print */
+    .newsletter-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 1.5cm;
+        border: 1pt solid #ddd;
+        padding: 1cm;
+        background: white !important;
+        box-shadow: none !important;
+        border-radius: 0;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    .newsletter-grid {
+        display: block;
+        columns: 1;
+        column-gap: 0;
+    }
+
+    .card {
+        border: 1pt solid #ccc;
+        margin-bottom: 1cm;
+        padding: 0.8cm;
+        background: white !important;
+        box-shadow: none !important;
+        border-radius: 0;
+        break-inside: avoid;
+    }
+
+    /* 🖼️ Image Optimization for Print */
+    .newsletter-image,
+    .newsletter-content img {
+        max-width: 100% !important;
+        height: auto !important;
+        border: 1pt solid #ddd;
+        margin: 0.5cm 0;
+        filter: grayscale(20%);
+        -webkit-filter: grayscale(20%);
+    }
+
+    .image-container {
+        background: none !important;
+        border: 1pt solid #ddd;
+        margin: 0.5cm 0;
+    }
+
+    /* 📝 Typography for Print */
+    h1, h2, h3, h4, h5, h6 {
+        color: black !important;
+        font-weight: bold;
+        margin-top: 0.8cm;
+        margin-bottom: 0.4cm;
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    h1 {
+        font-size: 18pt;
+        border-bottom: 2pt solid black;
+        padding-bottom: 0.2cm;
+    }
+
+    h2 {
+        font-size: 16pt;
+    }
+
+    h3 {
+        font-size: 14pt;
+    }
+
+    p {
+        font-size: 12pt;
+        line-height: 1.6;
+        margin-bottom: 0.5cm;
+        text-align: justify;
+        orphans: 3;
+        widows: 3;
+    }
+
+    /* 🏷️ Category and Meta Info */
+    .category-badge {
+        display: inline-block !important;
+        background: white !important;
+        color: black !important;
+        border: 1pt solid black !important;
+        padding: 0.1cm 0.3cm !important;
+        font-size: 10pt !important;
+        font-weight: bold !important;
+        margin-right: 0.3cm;
+    }
+
+    /* 📊 Statistics Display */
+    .stat-item {
+        font-size: 10pt;
+        color: #666 !important;
+        margin-right: 1cm;
+    }
+
+    .stat-item.views,
+    .stat-item.category {
+        display: inline !important;
+    }
+
+    .stat-item i {
+        display: none;
+    }
+
+    /* 📑 Content Formatting */
+    .newsletter-content {
+        font-family: 'Sarabun', 'Prompt', serif;
+        font-size: 12pt;
+        line-height: 1.7;
+        color: black !important;
+        text-align: justify;
+    }
+
+    .newsletter-content p {
+        margin-bottom: 0.5cm;
+        text-indent: 1cm;
+    }
+
+    .newsletter-content p:first-child {
+        text-indent: 0;
+    }
+
+    /* 📝 Modal Content for Print */
+    #newsletter-modal {
+        position: static !important;
+        display: block !important;
+        background: white !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        z-index: auto !important;
+    }
+
+    .modal-content {
+        max-height: none !important;
+        overflow: visible !important;
+        animation: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    #modal-title {
+        font-size: 18pt !important;
+        font-weight: bold !important;
+        color: black !important;
+        margin-bottom: 0.8cm !important;
+        border-bottom: 2pt solid black !important;
+        padding-bottom: 0.3cm !important;
+        page-break-after: avoid !important;
+    }
+
+    #modal-content {
+        color: black !important;
+        background: white !important;
+    }
+
+    /* 📅 Date and Author Information */
+    .text-sm.text-gray-500,
+    .text-sm.text-gray-600 {
+        font-size: 10pt !important;
+        color: #666 !important;
+        margin: 0.3cm 0 !important;
+    }
+
+    /* 📌 Page Headers and Footers */
+    @page {
+        @top-center {
+            content: "ข่าวสารสถานศึกษา";
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        @bottom-center {
+            content: "หน้า " counter(page) " จาก " counter(pages);
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        @bottom-right {
+            content: "พิมพ์เมื่อ: " date(iso);
+            font-size: 9pt;
+            color: #999;
+        }
+    }
+
+    /* 🔗 Links */
+    a {
+        color: black !important;
+        text-decoration: underline !important;
+    }
+
+    a[href]:after {
+        content: " (" attr(href) ")";
+        font-size: 9pt;
+        color: #666;
+    }
+
+    /* Internal links - don't show URL */
+    a[href^="#"]:after,
+    a[href^="javascript:"]:after {
+        content: "";
+    }
+
+    /* 📋 Tables (if any) */
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0.5cm 0;
+        font-size: 11pt;
+    }
+
+    th, td {
+        border: 1pt solid black;
+        padding: 0.2cm;
+        text-align: left;
+    }
+
+    th {
+        background: #f0f0f0 !important;
+        font-weight: bold;
+    }
+
+    /* 📦 Grid Layout for Print */
+    .newsletter-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1cm !important;
+    }
+
+    /* 🔄 Page Breaks */
+    .newsletter-card,
+    .card {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .newsletter-card:nth-child(even) {
+        page-break-before: auto;
+    }
+
+    /* Force page break before certain sections */
+    .featured-section,
+    .all-news-section {
+        page-break-before: auto;
+    }
+
+    /* 💼 Business Card Style Layout */
+    .print-header {
+        text-align: center;
+        margin-bottom: 1cm;
+        border-bottom: 2pt solid black;
+        padding-bottom: 0.5cm;
+    }
+
+    .print-header h1 {
+        font-size: 20pt;
+        margin-bottom: 0.2cm;
+    }
+
+    .print-header p {
+        font-size: 12pt;
+        color: #666 !important;
+        margin: 0;
+    }
+
+    /* 📱 QR Code Placeholder */
+    .qr-code-placeholder {
+        width: 2cm;
+        height: 2cm;
+        border: 1pt solid black;
+        display: inline-block;
+        margin: 0.5cm;
+        background: white;
+        position: relative;
+    }
+
+    .qr-code-placeholder::after {
+        content: "QR";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 8pt;
+        color: #999;
+    }
+
+    /* 🎨 Print-Specific Utilities */
+    .print-only {
+        display: block !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .print-break-before {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    .print-break-after {
+        page-break-after: always;
+        break-after: page;
+    }
+
+    .print-avoid-break {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* 📊 Print Statistics Summary */
+    .print-summary {
+        margin-top: 1cm;
+        padding: 0.5cm;
+        border: 1pt solid black;
+        background: #f9f9f9 !important;
+        font-size: 10pt;
+    }
+
+    .print-summary h4 {
+        margin: 0 0 0.3cm 0;
+        font-size: 12pt;
+    }
+
+    /* 🔍 Search Query Display for Print */
+    .print-search-info {
+        margin-bottom: 1cm;
+        padding: 0.3cm;
+        border: 1pt dashed #999;
+        font-size: 10pt;
+        color: #666 !important;
+        background: #f5f5f5 !important;
+    }
+
+    /* 🌐 Responsive Print Layout */
+    @media print and (orientation: landscape) {
+        .newsletter-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 1.5cm !important;
+        }
+        
+        .newsletter-card {
+            margin-bottom: 1cm;
+        }
+    }
+
+    /* 📄 Economy Print Mode */
+    @media print and (color-index: 0) {
+        * {
+            color: black !important;
+            background: white !important;
+        }
+        
+        .newsletter-image,
+        .newsletter-content img {
+            filter: grayscale(100%);
+            -webkit-filter: grayscale(100%);
+        }
+    }
+
+    /* 🔖 Bookmark-style Layout */
+    .bookmark-layout .newsletter-card {
+        width: 48%;
+        display: inline-block;
+        vertical-align: top;
+        margin-right: 2%;
+        margin-bottom: 0.5cm;
+        font-size: 10pt;
+    }
+
+    /* 📑 Table of Contents for Multiple Articles */
+    .print-toc {
+        page-break-after: always;
+        break-after: page;
+    }
+
+    .print-toc ol {
+        list-style: decimal;
+        padding-left: 1cm;
+    }
+
+    .print-toc li {
+        margin-bottom: 0.3cm;
+        line-height: 1.4;
+    }
+
+    /* 📐 Measurement Helpers */
+    .cm { width: 1cm; height: 1cm; }
+    .inch { width: 1in; height: 1in; }
+    
+    /* Debug helper for print layout */
+    .print-debug {
+        border: 1pt dashed red !important;
+        position: relative;
+    }
+    
+    .print-debug::before {
+        content: attr(class);
+        position: absolute;
+        top: -15pt;
+        left: 0;
+        font-size: 8pt;
+        color: red;
+        background: white;
+        padding: 2pt;
+    }
+}
+
+/* 🖨️ Print Utilities for Screen Preview */
+@media screen {
+    .print-preview {
+        background: white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        margin: 20px auto;
+        padding: 2cm;
+        max-width: 21cm; /* A4 width */
+        min-height: 29.7cm; /* A4 height */
+        font-family: 'Sarabun', serif;
+        font-size: 12pt;
+        line-height: 1.5;
+    }
+    
+    .print-preview * {
+        color: black !important;
+    }
+    
+    .print-preview .no-print {
+        display: none;
+    }
+    
+    .print-preview .print-only {
+        display: block;
+    }
+}
