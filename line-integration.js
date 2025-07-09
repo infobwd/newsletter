@@ -18,30 +18,90 @@ class LineIntegration {
 
     // Initialize LIFF
     async initialize() {
-        try {
-            console.log('Initializing LINE LIFF...');
+    try {
+        console.log('Initializing LINE LIFF...');
+        
+        // Initialize LIFF
+        await liff.init({ liffId: this.liffId });
+        this.isInitialized = true;
+        
+        console.log('LIFF initialized successfully');
+        console.log('Is in LINE client:', liff.isInClient());
+        console.log('Is logged in:', liff.isLoggedIn());
+        
+        // Check if user is logged in
+        if (liff.isLoggedIn()) {
+            await this.handleLoginSuccess();
+        } else {
+            this.showLoginButton();
             
-            // Initialize LIFF
-            await liff.init({ liffId: this.liffId });
-            this.isInitialized = true;
-            
-            console.log('LIFF initialized successfully');
-            
-            // Check if user is logged in
-            if (liff.isLoggedIn()) {
-                await this.handleLoginSuccess();
-            } else {
-                this.showLoginButton();
-            }
-            
-            // Setup event listeners
-            this.setupEventListeners();
-            
-        } catch (error) {
-            console.error('LIFF initialization failed:', error);
-            this.handleInitError(error);
+            // 🆕 แม้ไม่ login ก็ยังสามารถเปิดข่าวได้ (แต่ไม่สามารถแชร์)
+            await this.handleLiffQueryParams();
         }
+        
+        // Setup event listeners
+        this.setupEventListeners();
+        
+    } catch (error) {
+        console.error('LIFF initialization failed:', error);
+        this.handleInitError(error);
     }
+}
+
+    // Handle LIFF query parameters when opened from LINE
+async handleLiffQueryParams() {
+    try {
+        if (!this.isInitialized) {
+            console.log('LIFF not initialized yet, waiting...');
+            return;
+        }
+
+        // ตรวจสอบว่าเปิดจาก LINE หรือไม่
+        if (!liff.isInClient()) {
+            console.log('Not opened in LINE client');
+            return;
+        }
+
+        // อ่าน query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const articleId = urlParams.get('article');
+
+        if (articleId) {
+            console.log('LIFF opened with article ID:', articleId);
+            
+            // รอให้ main app โหลดเสร็จก่อน
+            await this.waitForMainAppReady();
+            
+            // เปิดข่าวที่ระบุ
+            if (window.openNewsletterModal) {
+                await window.openNewsletterModal(articleId);
+                
+                // แสดง toast notification
+                this.showSuccess('เปิดข่าวสารจาก LINE สำเร็จ');
+            } else {
+                console.error('openNewsletterModal function not available');
+            }
+        }
+
+    } catch (error) {
+        console.error('Handle LIFF query params error:', error);
+        this.showError('ไม่สามารถเปิดข่าวสารได้');
+    }
+}
+
+    // รอให้ main application พร้อม
+async waitForMainAppReady() {
+    return new Promise((resolve) => {
+        const checkReady = () => {
+            if (window.openNewsletterModal && window.allNewsletters && window.allNewsletters.length > 0) {
+                resolve();
+            } else {
+                setTimeout(checkReady, 500); // เช็คทุก 500ms
+            }
+        };
+        checkReady();
+    });
+}
 
     // Setup event listeners
     setupEventListeners() {
@@ -162,20 +222,23 @@ class LineIntegration {
     }
 
     // Handle login success
-    async handleLoginSuccess() {
-        try {
-            // Get user profile
-            this.userProfile = await liff.getProfile();
-            console.log('User profile:', this.userProfile);
-            
-            // Update UI
-            this.showUserProfile();
-            
-        } catch (error) {
-            console.error('Failed to get user profile:', error);
-            this.showError('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
-        }
+async handleLoginSuccess() {
+    try {
+        // Get user profile
+        this.userProfile = await liff.getProfile();
+        console.log('User profile:', this.userProfile);
+        
+        // Update UI
+        this.showUserProfile();
+        
+        // 🆕 เพิ่มการจัดการ query parameters หลัง login สำเร็จ
+        await this.handleLiffQueryParams();
+        
+    } catch (error) {
+        console.error('Failed to get user profile:', error);
+        this.showError('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
     }
+}
 
     // Handle initialization error
     handleInitError(error) {
@@ -243,159 +306,161 @@ class LineIntegration {
 
     // Create flex message for sharing
     createFlexMessage(newsletter) {
-        const imageUrl = newsletter.images && newsletter.images.length > 0 
-            ? newsletter.images[0].url 
-            : 'https://via.placeholder.com/400x200?text=No+Image';
-            
-        const websiteUrl = window.location.origin;
-        const articleUrl = `${websiteUrl}?article=${newsletter.id}`;
-
-        return {
-            type: 'flex',
-            altText: `ข่าวสาร: ${newsletter.title}`,
-            contents: {
-                type: 'bubble',
-                size: 'giga',
-                header: {
-                    type: 'box',
-                    layout: 'vertical',
-                    contents: [
-                        {
-                            type: 'image',
-                            url: imageUrl,
-                            size: 'full',
-                            aspectRatio: '20:13',
-                            aspectMode: 'cover',
-                            action: {
-                                type: 'uri',
-                                uri: articleUrl
+    const imageUrl = newsletter.images && newsletter.images.length > 0 
+        ? newsletter.images[0].url 
+        : 'https://via.placeholder.com/400x200?text=No+Image';
+        
+    const websiteUrl = window.location.origin;
+    
+    // 🆕 เปลี่ยนจาก direct link เป็น LIFF URL
+    const liffUrl = `https://liff.line.me/${this.liffId}?article=${newsletter.id}`;
+    
+    return {
+        type: 'flex',
+        altText: `ข่าวสาร: ${newsletter.title}`,
+        contents: {
+            type: 'bubble',
+            size: 'giga',
+            header: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                    {
+                        type: 'image',
+                        url: imageUrl,
+                        size: 'full',
+                        aspectRatio: '20:13',
+                        aspectMode: 'cover',
+                        action: {
+                            type: 'uri',
+                            uri: liffUrl  // 🆕 ใช้ LIFF URL แทน direct URL
+                        }
+                    }
+                ],
+                paddingAll: '0px'
+            },
+            body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                    {
+                        type: 'text',
+                        text: newsletter.title,
+                        weight: 'bold',
+                        size: 'lg',
+                        wrap: true,
+                        maxLines: 2
+                    },
+                    {
+                        type: 'text',
+                        text: newsletter.subtitle || newsletter.content.substring(0, 100) + '...',
+                        size: 'sm',
+                        color: '#666666',
+                        wrap: true,
+                        maxLines: 3,
+                        margin: 'md'
+                    },
+                    {
+                        type: 'box',
+                        layout: 'vertical',
+                        margin: 'lg',
+                        spacing: 'sm',
+                        contents: [
+                            {
+                                type: 'box',
+                                layout: 'baseline',
+                                spacing: 'sm',
+                                contents: [
+                                    {
+                                        type: 'text',
+                                        text: 'หมวดหมู่',
+                                        color: '#aaaaaa',
+                                        size: 'sm',
+                                        flex: 1
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: newsletter.category,
+                                        wrap: true,
+                                        color: '#666666',
+                                        size: 'sm',
+                                        flex: 3
+                                    }
+                                ]
+                            },
+                            {
+                                type: 'box',
+                                layout: 'baseline',
+                                spacing: 'sm',
+                                contents: [
+                                    {
+                                        type: 'text',
+                                        text: 'ผู้เขียน',
+                                        color: '#aaaaaa',
+                                        size: 'sm',
+                                        flex: 1
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: newsletter.author,
+                                        wrap: true,
+                                        color: '#666666',
+                                        size: 'sm',
+                                        flex: 3
+                                    }
+                                ]
+                            },
+                            {
+                                type: 'box',
+                                layout: 'baseline',
+                                spacing: 'sm',
+                                contents: [
+                                    {
+                                        type: 'text',
+                                        text: 'วันที่',
+                                        color: '#aaaaaa',
+                                        size: 'sm',
+                                        flex: 1
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: this.formatDateForShare(newsletter.publishDate),
+                                        wrap: true,
+                                        color: '#666666',
+                                        size: 'sm',
+                                        flex: 3
+                                    }
+                                ]
                             }
+                        ]
+                    }
+                ]
+            },
+            footer: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                contents: [
+                    {
+                        type: 'button',
+                        style: 'primary',
+                        height: 'sm',
+                        action: {
+                            type: 'uri',
+                            label: 'อ่านข่าวเต็ม',
+                            uri: liffUrl  // 🆕 ใช้ LIFF URL แทน direct URL
                         }
-                    ],
-                    paddingAll: '0px'
-                },
-                body: {
-                    type: 'box',
-                    layout: 'vertical',
-                    contents: [
-                        {
-                            type: 'text',
-                            text: newsletter.title,
-                            weight: 'bold',
-                            size: 'lg',
-                            wrap: true,
-                            maxLines: 2
-                        },
-                        {
-                            type: 'text',
-                            text: newsletter.subtitle || newsletter.content.substring(0, 100) + '...',
-                            size: 'sm',
-                            color: '#666666',
-                            wrap: true,
-                            maxLines: 3,
-                            margin: 'md'
-                        },
-                        {
-                            type: 'box',
-                            layout: 'vertical',
-                            margin: 'lg',
-                            spacing: 'sm',
-                            contents: [
-                                {
-                                    type: 'box',
-                                    layout: 'baseline',
-                                    spacing: 'sm',
-                                    contents: [
-                                        {
-                                            type: 'text',
-                                            text: 'หมวดหมู่',
-                                            color: '#aaaaaa',
-                                            size: 'sm',
-                                            flex: 1
-                                        },
-                                        {
-                                            type: 'text',
-                                            text: newsletter.category,
-                                            wrap: true,
-                                            color: '#666666',
-                                            size: 'sm',
-                                            flex: 3
-                                        }
-                                    ]
-                                },
-                                {
-                                    type: 'box',
-                                    layout: 'baseline',
-                                    spacing: 'sm',
-                                    contents: [
-                                        {
-                                            type: 'text',
-                                            text: 'ผู้เขียน',
-                                            color: '#aaaaaa',
-                                            size: 'sm',
-                                            flex: 1
-                                        },
-                                        {
-                                            type: 'text',
-                                            text: newsletter.author,
-                                            wrap: true,
-                                            color: '#666666',
-                                            size: 'sm',
-                                            flex: 3
-                                        }
-                                    ]
-                                },
-                                {
-                                    type: 'box',
-                                    layout: 'baseline',
-                                    spacing: 'sm',
-                                    contents: [
-                                        {
-                                            type: 'text',
-                                            text: 'วันที่',
-                                            color: '#aaaaaa',
-                                            size: 'sm',
-                                            flex: 1
-                                        },
-                                        {
-                                            type: 'text',
-                                            text: this.formatDateForShare(newsletter.publishDate),
-                                            wrap: true,
-                                            color: '#666666',
-                                            size: 'sm',
-                                            flex: 3
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                },
-                footer: {
-                    type: 'box',
-                    layout: 'vertical',
-                    spacing: 'sm',
-                    contents: [
-                        {
-                            type: 'button',
-                            style: 'primary',
-                            height: 'sm',
-                            action: {
-                                type: 'uri',
-                                label: 'อ่านข่าวเต็ม',
-                                uri: articleUrl
-                            }
-                        },
-                        {
-                            type: 'spacer',
-                            size: 'sm'
-                        }
-                    ],
-                    flex: 0
-                }
+                    },
+                    {
+                        type: 'spacer',
+                        size: 'sm'
+                    }
+                ],
+                flex: 0
             }
-        };
-    }
+        }
+    };
+}
 
     // Share to LINE chat
     async shareToChat() {
@@ -446,19 +511,15 @@ class LineIntegration {
             return;
         }
 
-        // เช็คว่ารองรับ timeline sharing หรือไม่
-        if (!liff.isApiAvailable('shareTargetPicker')) {
-            this.closeShareModal();
-            this.showError('เบราว์เซอร์นี้ไม่รองรับการแชร์ไปยังไทม์ไลน์');
-            return;
-        }
-
-        const websiteUrl = window.location.origin;
-        const articleUrl = `${websiteUrl}?article=${this.currentNewsletter.id}`;
+        // 🆕 ใช้ LIFF URL แทน direct website URL
+        const liffUrl = `https://liff.line.me/${this.liffId}?article=${this.currentNewsletter.id}`;
+        const shareText = `${this.currentNewsletter.title}\n\n${this.currentNewsletter.subtitle || this.currentNewsletter.content.substring(0, 100)}...`;
         
-        // สำหรับ timeline ใช้ external link
+        // สำหรับ timeline ใช้ LINE Share URL with LIFF
+        const timelineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(liffUrl)}&text=${encodeURIComponent(shareText)}`;
+        
         await liff.openWindow({
-            url: `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(this.currentNewsletter.title)}`,
+            url: timelineShareUrl,
             external: true
         });
         
@@ -488,30 +549,30 @@ class LineIntegration {
             return;
         }
 
-        const websiteUrl = window.location.origin;
-        const articleUrl = `${websiteUrl}?article=${this.currentNewsletter.id}`;
+        // 🆕 สร้าง LIFF URL สำหรับ copy
+        const liffUrl = `https://liff.line.me/${this.liffId}?article=${this.currentNewsletter.id}`;
         
-        await navigator.clipboard.writeText(articleUrl);
+        await navigator.clipboard.writeText(liffUrl);
         
         // ⚠️ หมายเหตุ: การคัดลอกลิงก์ไม่นับเป็นการแชร์
         // เพราะยังไม่แน่ใจว่าผู้ใช้จะนำไปแชร์จริงหรือไม่
         
         this.closeShareModal(); // ปิด modal ก่อน
-        this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
+        this.showSuccess('คัดลอก LIFF URL เรียบร้อยแล้ว');
         
     } catch (error) {
-        console.error('Copy link failed:', error);
+        console.error('Copy LIFF URL failed:', error);
         
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
-        textArea.value = articleUrl;
+        textArea.value = liffUrl;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
         
         this.closeShareModal(); // ปิด modal แม้ใช้ fallback
-        this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
+        this.showSuccess('คัดลอก LIFF URL เรียบร้อยแล้ว');
     }
 }
 
