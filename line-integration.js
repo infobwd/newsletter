@@ -399,101 +399,121 @@ class LineIntegration {
 
     // Share to LINE chat
     async shareToChat() {
-        try {
-            if (!this.currentNewsletter) {
-                this.showError('ไม่พบข้อมูลข่าวสารที่จะแชร์');
-                return;
-            }
-
-            if (!this.isInitialized) {
-                this.showError('LINE ยังไม่พร้อมใช้งาน');
-                return;
-            }
-
-            const flexMessage = this.createFlexMessage(this.currentNewsletter);
-            
-            // ใช้ LIFF shareTargetPicker
-            await liff.shareTargetPicker([flexMessage]);
-            
-            this.closeShareModal(); // ปิด share modal ก่อน
-            this.showSuccess('แชร์ข่าวสารเรียบร้อยแล้ว');
-            
-        } catch (error) {
-            console.error('Share to chat failed:', error);
-            this.closeShareModal(); // ปิด modal แม้เกิด error
-            this.showError('การแชร์ล้มเหลว กรุณาลองใหม่อีกครั้ง');
+    try {
+        if (!this.currentNewsletter) {
+            this.showError('ไม่พบข้อมูลข่าวสารที่จะแชร์');
+            return;
         }
-    }
 
+        if (!this.isInitialized) {
+            this.showError('LINE ยังไม่พร้อมใช้งาน');
+            return;
+        }
+
+        const flexMessage = this.createFlexMessage(this.currentNewsletter);
+        
+        // ใช้ LIFF shareTargetPicker
+        await liff.shareTargetPicker([flexMessage]);
+        
+        // 🆕 เพิ่มการนับยอดแชร์
+        try {
+            await apiCall('incrementShare', { id: this.currentNewsletter.id });
+            console.log('Share count incremented for:', this.currentNewsletter.id);
+        } catch (shareError) {
+            console.error('Failed to increment share count:', shareError);
+            // ไม่แสดง error ให้ user เพราะการแชร์สำเร็จแล้ว
+        }
+        
+        this.closeShareModal(); // ปิด share modal ก่อน
+        this.showSuccess('แชร์ข่าวสารเรียบร้อยแล้ว');
+        
+    } catch (error) {
+        console.error('Share to chat failed:', error);
+        this.closeShareModal(); // ปิด modal แม้เกิด error
+        this.showError('การแชร์ล้มเหลว กรุณาลองใหม่อีกครั้ง');
+    }
+}
     // Share to LINE timeline (only for LIFF v2.1+)
-    async shareToTimeline() {
-        try {
-            if (!this.currentNewsletter) {
-                this.showError('ไม่พบข้อมูลข่าวสารที่จะแชร์');
-                return;
-            }
-
-            if (!this.isInitialized) {
-                this.showError('LINE ยังไม่พร้อมใช้งาน');
-                return;
-            }
-
-            // เช็คว่ารองรับ timeline sharing หรือไม่
-            if (!liff.isApiAvailable('shareTargetPicker')) {
-                this.closeShareModal();
-                this.showError('เบราว์เซอร์นี้ไม่รองรับการแชร์ไปยังไทม์ไลน์');
-                return;
-            }
-
-            const websiteUrl = window.location.origin;
-            const articleUrl = `${websiteUrl}?article=${this.currentNewsletter.id}`;
-            
-            // สำหรับ timeline ใช้ external link
-            await liff.openWindow({
-                url: `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(this.currentNewsletter.title)}`,
-                external: true
-            });
-            
-            this.closeShareModal(); // ปิด modal หลังเปิด external window
-            
-        } catch (error) {
-            console.error('Share to timeline failed:', error);
-            this.closeShareModal(); // ปิด modal แม้เกิด error
-            this.showError('การแชร์ไปยังไทม์ไลน์ล้มเหลว');
+   async shareToTimeline() {
+    try {
+        if (!this.currentNewsletter) {
+            this.showError('ไม่พบข้อมูลข่าวสารที่จะแชร์');
+            return;
         }
+
+        if (!this.isInitialized) {
+            this.showError('LINE ยังไม่พร้อมใช้งาน');
+            return;
+        }
+
+        // เช็คว่ารองรับ timeline sharing หรือไม่
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+            this.closeShareModal();
+            this.showError('เบราว์เซอร์นี้ไม่รองรับการแชร์ไปยังไทม์ไลน์');
+            return;
+        }
+
+        const websiteUrl = window.location.origin;
+        const articleUrl = `${websiteUrl}?article=${this.currentNewsletter.id}`;
+        
+        // สำหรับ timeline ใช้ external link
+        await liff.openWindow({
+            url: `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(this.currentNewsletter.title)}`,
+            external: true
+        });
+        
+        // 🆕 เพิ่มการนับยอดแชร์
+        try {
+            await apiCall('incrementShare', { id: this.currentNewsletter.id });
+            console.log('Timeline share count incremented for:', this.currentNewsletter.id);
+        } catch (shareError) {
+            console.error('Failed to increment timeline share count:', shareError);
+            // ไม่แสดง error ให้ user เพราะการแชร์สำเร็จแล้ว
+        }
+        
+        this.closeShareModal(); // ปิด modal หลังเปิด external window
+        
+    } catch (error) {
+        console.error('Share to timeline failed:', error);
+        this.closeShareModal(); // ปิด modal แม้เกิด error
+        this.showError('การแชร์ไปยังไทม์ไลน์ล้มเหลว');
     }
+}
 
     // Copy link to clipboard
     async copyLink() {
-        try {
-            if (!this.currentNewsletter) {
-                this.showError('ไม่พบข้อมูลข่าวสารที่จะแชร์');
-                return;
-            }
-
-            const websiteUrl = window.location.origin;
-            const articleUrl = `${websiteUrl}?article=${this.currentNewsletter.id}`;
-            
-            await navigator.clipboard.writeText(articleUrl);
-            
-            this.closeShareModal(); // ปิด modal ก่อน
-            this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
-            
-        } catch (error) {
-            console.error('Copy link failed:', error);
-            
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = articleUrl;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            
-            this.closeShareModal(); // ปิด modal แม้ใช้ fallback
-            this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
+    try {
+        if (!this.currentNewsletter) {
+            this.showError('ไม่พบข้อมูลข่าวสารที่จะแชร์');
+            return;
         }
+
+        const websiteUrl = window.location.origin;
+        const articleUrl = `${websiteUrl}?article=${this.currentNewsletter.id}`;
+        
+        await navigator.clipboard.writeText(articleUrl);
+        
+        // ⚠️ หมายเหตุ: การคัดลอกลิงก์ไม่นับเป็นการแชร์
+        // เพราะยังไม่แน่ใจว่าผู้ใช้จะนำไปแชร์จริงหรือไม่
+        
+        this.closeShareModal(); // ปิด modal ก่อน
+        this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
+        
+    } catch (error) {
+        console.error('Copy link failed:', error);
+        
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = articleUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        this.closeShareModal(); // ปิด modal แม้ใช้ fallback
+        this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
     }
+}
 
     // Format date for sharing
     formatDateForShare(dateString) {
