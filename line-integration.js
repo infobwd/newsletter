@@ -211,16 +211,33 @@ class LineIntegration {
         }
 
         const shareModal = document.getElementById('share-modal');
+        const newsletterModal = document.getElementById('newsletter-modal');
+        
         if (shareModal) {
+            // ซ่อน newsletter modal ชั่วคราว เพื่อไม่ให้บัง share modal
+            if (newsletterModal) {
+                newsletterModal.style.zIndex = '40';
+            }
+            
             shareModal.classList.remove('hidden');
+            // Force บังคับให้ share modal อยู่บนสุด
+            shareModal.style.zIndex = '99999';
         }
     }
 
     // Close share modal
     closeShareModal() {
         const shareModal = document.getElementById('share-modal');
+        const newsletterModal = document.getElementById('newsletter-modal');
+        
         if (shareModal) {
             shareModal.classList.add('hidden');
+            shareModal.style.zIndex = '';
+        }
+        
+        // คืนค่า z-index ของ newsletter modal
+        if (newsletterModal) {
+            newsletterModal.style.zIndex = '50';
         }
     }
 
@@ -398,11 +415,12 @@ class LineIntegration {
             // ใช้ LIFF shareTargetPicker
             await liff.shareTargetPicker([flexMessage]);
             
-            this.closeShareModal();
+            this.closeShareModal(); // ปิด share modal ก่อน
             this.showSuccess('แชร์ข่าวสารเรียบร้อยแล้ว');
             
         } catch (error) {
             console.error('Share to chat failed:', error);
+            this.closeShareModal(); // ปิด modal แม้เกิด error
             this.showError('การแชร์ล้มเหลว กรุณาลองใหม่อีกครั้ง');
         }
     }
@@ -422,6 +440,7 @@ class LineIntegration {
 
             // เช็คว่ารองรับ timeline sharing หรือไม่
             if (!liff.isApiAvailable('shareTargetPicker')) {
+                this.closeShareModal();
                 this.showError('เบราว์เซอร์นี้ไม่รองรับการแชร์ไปยังไทม์ไลน์');
                 return;
             }
@@ -435,10 +454,11 @@ class LineIntegration {
                 external: true
             });
             
-            this.closeShareModal();
+            this.closeShareModal(); // ปิด modal หลังเปิด external window
             
         } catch (error) {
             console.error('Share to timeline failed:', error);
+            this.closeShareModal(); // ปิด modal แม้เกิด error
             this.showError('การแชร์ไปยังไทม์ไลน์ล้มเหลว');
         }
     }
@@ -456,7 +476,7 @@ class LineIntegration {
             
             await navigator.clipboard.writeText(articleUrl);
             
-            this.closeShareModal();
+            this.closeShareModal(); // ปิด modal ก่อน
             this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
             
         } catch (error) {
@@ -470,7 +490,7 @@ class LineIntegration {
             document.execCommand('copy');
             document.body.removeChild(textArea);
             
-            this.closeShareModal();
+            this.closeShareModal(); // ปิด modal แม้ใช้ fallback
             this.showSuccess('คัดลอกลิงก์เรียบร้อยแล้ว');
         }
     }
