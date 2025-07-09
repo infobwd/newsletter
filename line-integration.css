@@ -94,10 +94,12 @@
 #share-modal {
     backdrop-filter: blur(4px);
     animation: fadeIn 0.3s ease-out;
+    z-index: 99999 !important; /* Force highest z-index */
 }
 
 #share-modal .bg-white {
     animation: slideUp 0.3s ease-out;
+    z-index: 99999 !important;
 }
 
 .share-option-btn {
