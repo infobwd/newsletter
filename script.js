@@ -1,4 +1,4 @@
-// Newsletter Frontend for Glitch with LINE Integration
+// script.js - Optimized Version
 // เชื่อมต่อกับ Google Apps Script API
 
 // ⭐ เปลี่ยน URL นี้เป็น Web App URL ของคุณ
@@ -11,25 +11,436 @@ let filteredNewsletters = [];
 let currentPage = 1;
 let itemsPerPage = getItemsPerPage();
 let allTags = []; 
-let directArticleId = null; // สำหรับ direct link
+let directArticleId = null;
+let quickSearch = null;
+let filterTimeout = null;
+let searchCache = new Map();
 
-// เริ่มต้นแอป
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Starting Newsletter App...');
-    
-    // เช็ค URL parameters สำหรับ direct article link
-    checkDirectArticleLink();
-    
-    initializeApp();
-});
+// ⚡ Cache Management
+class CacheManager {
+    constructor() {
+        this.cache = new Map();
+        this.maxAge = 5 * 60 * 1000; // 5 นาที
+        this.maxSize = 100; // จำกัดขนาด cache
+    }
 
-function initializeApp() {
-    setupEventListeners();
-    loadCategories();
-    loadNewsletters();
+    set(key, data) {
+        if (this.cache.size >= this.maxSize) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+
+        this.cache.set(key, {
+            data: data,
+            timestamp: Date.now()
+        });
+    }
+
+    get(key) {
+        const item = this.cache.get(key);
+        if (!item) return null;
+
+        if (Date.now() - item.timestamp > this.maxAge) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return item.data;
+    }
+
+    clear() {
+        this.cache.clear();
+    }
+
+    has(key) {
+        const item = this.cache.get(key);
+        if (!item) return false;
+        
+        if (Date.now() - item.timestamp > this.maxAge) {
+            this.cache.delete(key);
+            return false;
+        }
+        
+        return true;
+    }
 }
 
-// เช็ค URL parameters สำหรับ direct article link
+// สร้าง cache instance
+const cacheManager = new CacheManager();
+
+// ⚡ Performance monitoring
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = {};
+    }
+
+    start(label) {
+        this.metrics[label] = {
+            start: performance.now()
+        };
+    }
+
+    end(label) {
+        if (this.metrics[label]) {
+            this.metrics[label].duration = performance.now() - this.metrics[label].start;
+            console.log(`⚡ ${label}: ${this.metrics[label].duration.toFixed(2)}ms`);
+        }
+    }
+
+    getMetrics() {
+        return this.metrics;
+    }
+}
+
+// สร้าง performance monitor
+const perfMonitor = new PerformanceMonitor();
+
+// ⚡ Lazy Loading Implementation
+class LazyImageLoader {
+    constructor() {
+        this.imageObserver = null;
+        this.initObserver();
+    }
+
+    initObserver() {
+        if ('IntersectionObserver' in window) {
+            this.imageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.loadImage(entry.target);
+                        this.imageObserver.unobserve(entry.target);
+                    }
+                });
+            }, {
+                rootMargin: '50px 0px',
+                threshold: 0.01
+            });
+        }
+    }
+
+    loadImage(img) {
+        const src = img.dataset.src;
+        if (src) {
+            img.src = src;
+            img.classList.add('loaded');
+            img.classList.remove('lazy');
+        }
+    }
+
+    observe(img) {
+        if (this.imageObserver) {
+            this.imageObserver.observe(img);
+        } else {
+            this.loadImage(img);
+        }
+    }
+}
+
+// สร้าง lazy loader instance
+const lazyLoader = new LazyImageLoader();
+
+// ⚡ Preloading System
+class PreloadManager {
+    constructor() {
+        this.preloadQueue = [];
+        this.isPreloading = false;
+        this.preloadedNewsletters = new Set();
+    }
+
+    addToQueue(newsletterId) {
+        if (!this.preloadedNewsletters.has(newsletterId) && 
+            !this.preloadQueue.includes(newsletterId)) {
+            this.preloadQueue.push(newsletterId);
+        }
+    }
+
+    async startPreloading() {
+        if (this.isPreloading || this.preloadQueue.length === 0) return;
+        
+        this.isPreloading = true;
+        
+        while (this.preloadQueue.length > 0) {
+            const newsletterId = this.preloadQueue.shift();
+            
+            try {
+                await apiCallCached('getNewsletter', { id: newsletterId });
+                this.preloadedNewsletters.add(newsletterId);
+                await new Promise(resolve => setTimeout(resolve, 200));
+            } catch (error) {
+                console.error('Preload failed for:', newsletterId, error);
+            }
+        }
+        
+        this.isPreloading = false;
+    }
+
+    preloadVisible(newsletters) {
+        newsletters.slice(0, 10).forEach(newsletter => {
+            this.addToQueue(newsletter.id);
+        });
+        
+        setTimeout(() => this.startPreloading(), 1000);
+    }
+}
+
+// สร้าง preload manager
+const preloadManager = new PreloadManager();
+
+// ⚡ Image Preloading
+class ImagePreloader {
+    constructor() {
+        this.preloadedImages = new Set();
+        this.preloadQueue = [];
+        this.maxConcurrent = 3;
+        this.currentLoading = 0;
+    }
+
+    preload(imageUrl) {
+        if (this.preloadedImages.has(imageUrl) || 
+            this.preloadQueue.includes(imageUrl)) {
+            return;
+        }
+
+        this.preloadQueue.push(imageUrl);
+        this.processQueue();
+    }
+
+    async processQueue() {
+        while (this.preloadQueue.length > 0 && 
+               this.currentLoading < this.maxConcurrent) {
+            
+            const imageUrl = this.preloadQueue.shift();
+            this.currentLoading++;
+            
+            try {
+                await this.loadImage(imageUrl);
+                this.preloadedImages.add(imageUrl);
+            } catch (error) {
+                console.warn('Failed to preload image:', imageUrl);
+            } finally {
+                this.currentLoading--;
+            }
+        }
+    }
+
+    loadImage(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load ${url}`));
+            img.src = url;
+        });
+    }
+
+    preloadVisibleImages(newsletters) {
+        newsletters.forEach(newsletter => {
+            if (newsletter.images && newsletter.images.length > 0) {
+                if (newsletter.images[0].thumbnailUrl) {
+                    this.preload(newsletter.images[0].thumbnailUrl);
+                }
+                this.preload(newsletter.images[0].url);
+            }
+        });
+    }
+}
+
+// สร้าง image preloader
+const imagePreloader = new ImagePreloader();
+
+// ⚡ Quick Search Implementation
+class QuickSearch {
+    constructor() {
+        this.searchIndex = null;
+        this.buildSearchIndex();
+    }
+
+    buildSearchIndex() {
+        if (!allNewsletters.length) return;
+        
+        perfMonitor.start('build-search-index');
+        
+        this.searchIndex = allNewsletters.map(newsletter => ({
+            id: newsletter.id,
+            searchText: `${newsletter.title} ${newsletter.content} ${newsletter.author} ${newsletter.category} ${(newsletter.tags || []).join(' ')}`.toLowerCase(),
+            newsletter: newsletter
+        }));
+        
+        perfMonitor.end('build-search-index');
+        console.log('🔍 Search index built with', this.searchIndex.length, 'items');
+    }
+
+    search(query) {
+        if (!this.searchIndex || !query) return allNewsletters;
+        
+        perfMonitor.start('quick-search');
+        
+        const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+        const results = this.searchIndex.filter(item => {
+            return searchTerms.every(term => item.searchText.includes(term));
+        }).map(item => item.newsletter);
+        
+        perfMonitor.end('quick-search');
+        
+        return results;
+    }
+
+    rebuildIndex() {
+        this.buildSearchIndex();
+    }
+}
+
+// ⚡ Progressive Loading Strategy
+class ProgressiveLoader {
+    constructor() {
+        this.loadingSteps = [
+            { name: 'categories', priority: 1 },
+            { name: 'featured', priority: 2 },
+            { name: 'recent', priority: 3 },
+            { name: 'all', priority: 4 }
+        ];
+        this.loadedSteps = new Set();
+    }
+
+    async loadStep(stepName) {
+        if (this.loadedSteps.has(stepName)) return;
+
+        perfMonitor.start(`load-${stepName}`);
+        
+        try {
+            switch (stepName) {
+                case 'categories':
+                    await this.loadCategories();
+                    break;
+                case 'featured':
+                    await this.loadFeaturedNewsletters();
+                    break;
+                case 'recent':
+                    await this.loadRecentNewsletters();
+                    break;
+                case 'all':
+                    await this.loadAllNewsletters();
+                    break;
+            }
+            
+            this.loadedSteps.add(stepName);
+            console.log(`✅ Loaded: ${stepName}`);
+            
+        } catch (error) {
+            console.error(`❌ Failed to load: ${stepName}`, error);
+        }
+        
+        perfMonitor.end(`load-${stepName}`);
+    }
+
+    async loadCategories() {
+        const categories = await apiCallCached('getCategories');
+        populateCategoryFilters();
+    }
+
+    async loadFeaturedNewsletters() {
+        if (!allNewsletters.length) {
+            const newsletters = await apiCallCached('getNewsletters');
+            allNewsletters = newsletters;
+        }
+        
+        const featured = allNewsletters.filter(n => n.featured).slice(0, 3);
+        displayNewsletterGrid(featured, 'featured-newsletters');
+        
+        const featuredSection = document.getElementById('featured-section');
+        if (featured.length > 0) {
+            featuredSection.classList.remove('hidden');
+        }
+    }
+
+    async loadRecentNewsletters() {
+        if (!allNewsletters.length) {
+            const newsletters = await apiCallCached('getNewsletters');
+            allNewsletters = newsletters;
+        }
+        
+        const recent = allNewsletters.filter(n => !n.featured).slice(0, 12);
+        displayNewsletterGrid(recent, 'newsletters-container');
+        
+        imagePreloader.preloadVisibleImages(recent);
+    }
+
+    async loadAllNewsletters() {
+        if (!allNewsletters.length) {
+            const newsletters = await apiCallCached('getNewsletters');
+            allNewsletters = newsletters;
+        }
+        
+        filteredNewsletters = [...allNewsletters];
+        updateTagsList();
+        displayNewsletters();
+        
+        preloadManager.preloadVisible(filteredNewsletters);
+        imagePreloader.preloadVisibleImages(filteredNewsletters.slice(0, 20));
+        
+        hideLoading();
+    }
+
+    async loadProgressively() {
+        showLoadingOptimized("กำลังโหลด...", true);
+        
+        for (const step of this.loadingSteps) {
+            await this.loadStep(step.name);
+            
+            if (step.name !== 'all') {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+    }
+}
+
+// สร้าง progressive loader
+const progressiveLoader = new ProgressiveLoader();
+
+// ⚡ Skeleton Loading Generator
+class SkeletonLoader {
+    static createNewsletterCardSkeleton() {
+        return `
+            <div class="skeleton-card">
+                <div class="skeleton-image"></div>
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="skeleton-text short"></div>
+                        <div class="skeleton-text" style="width: 60px;"></div>
+                    </div>
+                    
+                    <div class="skeleton-text long mb-2"></div>
+                    <div class="skeleton-text" style="width: 80%;"></div>
+                    
+                    <div class="skeleton-text short mt-4 mb-4"></div>
+                    
+                    <div class="skeleton-text mb-2" style="width: 90%;"></div>
+                    <div class="skeleton-text mb-2" style="width: 85%;"></div>
+                    <div class="skeleton-text mb-4" style="width: 70%;"></div>
+                    
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="skeleton-text" style="width: 100px;"></div>
+                        <div class="skeleton-text" style="width: 80px;"></div>
+                    </div>
+                    
+                    <div class="skeleton-text" style="width: 100%; height: 2.5rem; border-radius: 0.5rem;"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    static showSkeletonGrid(containerId, count = 6) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const skeletonHTML = Array(count)
+            .fill(this.createNewsletterCardSkeleton())
+            .join('');
+
+        container.innerHTML = `<div class="newsletter-grid">${skeletonHTML}</div>`;
+    }
+}
+
+// App Initialization
 function checkDirectArticleLink() {
     const urlParams = new URLSearchParams(window.location.search);
     directArticleId = urlParams.get('article');
@@ -40,29 +451,27 @@ function checkDirectArticleLink() {
 }
 
 function setupEventListeners() {
-    // Search and filter
     const searchInput = document.getElementById('search-input');
     const categoryFilter = document.getElementById('category-filter');
     const tagFilter = document.getElementById('tag-filter'); 
     const sortFilter = document.getElementById('sort-filter');
     
     if (searchInput) {
-        searchInput.addEventListener('input', debounce(filterNewsletters, 300));
+        searchInput.addEventListener('input', debounce(filterNewslettersWithQuickSearch, 150));
     }
     
     if (categoryFilter) {
-        categoryFilter.addEventListener('change', filterNewsletters);
+        categoryFilter.addEventListener('change', filterNewslettersWithQuickSearch);
     }
   
     if (tagFilter) {
-        tagFilter.addEventListener('change', filterNewsletters);
+        tagFilter.addEventListener('change', filterNewslettersWithQuickSearch);
     }
     
     if (sortFilter) {
-        sortFilter.addEventListener('change', filterNewsletters);
+        sortFilter.addEventListener('change', filterNewslettersWithQuickSearch);
     }
     
-    // Scroll to news
     const scrollBtn = document.getElementById('scroll-to-news');
     if (scrollBtn) {
         scrollBtn.addEventListener('click', () => {
@@ -70,17 +479,14 @@ function setupEventListeners() {
         });
     }
     
-    // Modal close
     const closeModal = document.getElementById('close-newsletter-modal');
     if (closeModal) {
         closeModal.addEventListener('click', () => {
             document.getElementById('newsletter-modal').classList.add('hidden');
-            // Clear URL parameter เมื่อปิด modal
             clearDirectArticleLink();
         });
     }
     
-    // Close modal when clicking outside
     const modal = document.getElementById('newsletter-modal');
     if (modal) {
         modal.addEventListener('click', (e) => {
@@ -91,21 +497,23 @@ function setupEventListeners() {
         });
     }
     
-    // Window resize
     window.addEventListener('resize', debounce(() => {
         itemsPerPage = getItemsPerPage();
         displayNewsletters();
     }, 300));
 }
 
-// Clear direct article link from URL
-function clearDirectArticleLink() {
-    if (directArticleId) {
-        const url = new URL(window.location);
-        url.searchParams.delete('article');
-        window.history.replaceState({}, '', url);
-        directArticleId = null;
-    }
+async function initializeApp() {
+    setupEventListeners();
+    loadCategories();
+    await loadNewslettersProgressively();
+    
+    // สร้าง quick search หลังจากโหลดข้อมูลเสร็จ
+    setTimeout(() => {
+        if (allNewsletters.length > 0) {
+            quickSearch = new QuickSearch();
+        }
+    }, 2000);
 }
 
 // Utility functions
@@ -123,11 +531,11 @@ function debounce(func, wait) {
 
 function getItemsPerPage() {
     const width = window.innerWidth;
-    if (width < 640) return 4;      // มือถือ: 4 รายการ
-    if (width < 768) return 6;      // แท็บเล็ต: 6 รายการ  
-    if (width < 1024) return 8;     // แท็บเล็ตใหญ่: 8 รายการ
-    if (width < 1280) return 9;     // เดสก์ท็อป: 9 รายการ
-    return 12;                      // จอใหญ่: 12 รายการ
+    if (width < 640) return 4;
+    if (width < 768) return 6;
+    if (width < 1024) return 8;
+    if (width < 1280) return 9;
+    return 12;
 }
 
 function showLoading(message = "กำลังโหลด...") {
@@ -135,6 +543,17 @@ function showLoading(message = "กำลังโหลด...") {
     const text = document.getElementById('loading-text');
     if (text) text.textContent = message;
     if (overlay) overlay.classList.add('active');
+}
+
+function showLoadingOptimized(message = "กำลังโหลด...", useSkeletons = false) {
+    if (useSkeletons) {
+        const containers = ['newsletters-container', 'featured-newsletters'];
+        containers.forEach(containerId => {
+            SkeletonLoader.showSkeletonGrid(containerId, 6);
+        });
+    } else {
+        showLoading(message);
+    }
 }
 
 function hideLoading() {
@@ -165,8 +584,39 @@ function formatDate(dateString) {
     });
 }
 
+function clearDirectArticleLink() {
+    if (directArticleId) {
+        const url = new URL(window.location);
+        url.searchParams.delete('article');
+        window.history.replaceState({}, '', url);
+        directArticleId = null;
+    }
+}
+
 // API functions
-// ⭐ เปลี่ยนจาก fetch เป็น JSONP
+async function apiCallCached(action, params = {}) {
+    const cacheKey = `${action}_${JSON.stringify(params)}`;
+    
+    const cachedData = cacheManager.get(cacheKey);
+    if (cachedData) {
+        console.log('📦 Using cached data for:', action);
+        return cachedData;
+    }
+
+    try {
+        const data = await apiCall(action, params);
+        
+        if (!['incrementView', 'incrementShare'].includes(action)) {
+            cacheManager.set(cacheKey, data);
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('API call failed:', error);
+        throw error;
+    }
+}
+
 async function apiCall(action, params = {}) {
     return new Promise((resolve, reject) => {
         try {
@@ -177,16 +627,12 @@ async function apiCall(action, params = {}) {
                 url.searchParams.append(key, params[key]);
             });
             
-            // สร้าง callback function name
             const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
             url.searchParams.append('callback', callbackName);
             
-            // สร้าง script tag
             const script = document.createElement('script');
             
-            // สร้าง global callback function
             window[callbackName] = function(data) {
-                // ลบ script tag และ callback function
                 document.head.removeChild(script);
                 delete window[callbackName];
                 
@@ -197,7 +643,6 @@ async function apiCall(action, params = {}) {
                 }
             };
             
-            // Error handling
             script.onerror = function() {
                 document.head.removeChild(script);
                 delete window[callbackName];
@@ -241,31 +686,24 @@ function populateCategoryFilters() {
     });
 }
 
-async function loadNewsletters() {
+async function loadNewslettersProgressively() {
     try {
-        showLoading("กำลังโหลดข่าวสาร...");
         hideError();
         
-        allNewsletters = await apiCall('getNewsletters');
-        filteredNewsletters = [...allNewsletters];
-        updateTagsList();
-        displayNewsletters();
+        await progressiveLoader.loadProgressively();
         
-        // เช็คว่ามี direct article link หรือไม่
         if (directArticleId) {
             await handleDirectArticleLink();
         }
         
-        hideLoading();
-        console.log(`Loaded ${allNewsletters.length} newsletters`);
+        console.log(`🚀 Progressive loading completed - ${allNewsletters.length} newsletters`);
     } catch (error) {
-        console.error('Load newsletters error:', error);
+        console.error('Progressive loading error:', error);
         hideLoading();
         showError('ไม่สามารถโหลดข่าวสารได้ กรุณาลองใหม่อีกครั้ง');
     }
 }
 
-// Handle direct article link
 async function handleDirectArticleLink() {
     if (!directArticleId) return;
     
@@ -310,52 +748,84 @@ function populateTagFilter() {
     });
 }
 
-function filterNewsletters() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    const categoryFilter = document.getElementById('category-filter').value;
-    const tagFilter = document.getElementById('tag-filter').value; 
-    const sortFilter = document.getElementById('sort-filter').value;
-
-    filteredNewsletters = allNewsletters.filter(newsletter => {
-        const matchesSearch = !searchTerm || 
-            newsletter.title.toLowerCase().includes(searchTerm) ||
-            newsletter.content.toLowerCase().includes(searchTerm) ||
-            newsletter.author.toLowerCase().includes(searchTerm);
+function filterNewslettersWithQuickSearch() {
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+        perfMonitor.start('filter-newsletters');
         
-        const matchesCategory = !categoryFilter || newsletter.category === categoryFilter;
-      
-        const matchesTag = !tagFilter || 
-            (newsletter.tags && newsletter.tags.some(tag => tag.trim() === tagFilter));
-        
-        return matchesSearch && matchesCategory && matchesTag; 
-    });
-        
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        const categoryFilter = document.getElementById('category-filter').value;
+        const tagFilter = document.getElementById('tag-filter').value;
+        const sortFilter = document.getElementById('sort-filter').value;
 
-    // Sort
-    switch(sortFilter) {
-        case 'oldest':
-            filteredNewsletters.sort((a, b) => {
-                const dateA = new Date(a.publishDate || a.createdDate);
-                const dateB = new Date(b.publishDate || b.createdDate);
-                return dateA - dateB;
-            });
-            break;
-        case 'views':
-            filteredNewsletters.sort((a, b) => (b.views || 0) - (a.views || 0));
-            break;
-        case 'featured':
-            filteredNewsletters.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
-            break;
-        default: // newest
-            filteredNewsletters.sort((a, b) => {
-                const dateA = new Date(a.publishDate || a.createdDate);
-                const dateB = new Date(b.publishDate || b.createdDate);
-                return dateB - dateA;
-            });
-    }
+        // สร้าง cache key สำหรับการค้นหา
+        const cacheKey = `${searchTerm}_${categoryFilter}_${tagFilter}_${sortFilter}`;
+        
+        // ตรวจสอบ search cache
+        if (searchCache.has(cacheKey)) {
+            filteredNewsletters = searchCache.get(cacheKey);
+            currentPage = 1;
+            displayNewsletters();
+            return;
+        }
 
-    currentPage = 1;
-    displayNewsletters();
+        let searchResults = allNewsletters;
+
+        // ใช้ quick search ถ้ามีการค้นหา
+        if (searchTerm && quickSearch) {
+            searchResults = quickSearch.search(searchTerm);
+        }
+
+        // Filter หมวดหมู่และแท็ก
+        filteredNewsletters = searchResults.filter(newsletter => {
+            const matchesCategory = !categoryFilter || newsletter.category === categoryFilter;
+            const matchesTag = !tagFilter || 
+                (newsletter.tags && newsletter.tags.some(tag => tag.trim() === tagFilter));
+            
+            return matchesCategory && matchesTag;
+        });
+
+        // Sort newsletters
+        switch(sortFilter) {
+            case 'oldest':
+                filteredNewsletters.sort((a, b) => {
+                    const dateA = new Date(a.publishDate || a.createdDate);
+                    const dateB = new Date(b.publishDate || b.createdDate);
+                    return dateA - dateB;
+                });
+                break;
+            case 'views':
+                filteredNewsletters.sort((a, b) => (b.views || 0) - (a.views || 0));
+                break;
+            case 'featured':
+                filteredNewsletters.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
+                break;
+            default:
+                filteredNewsletters.sort((a, b) => {
+                    const dateA = new Date(a.publishDate || a.createdDate);
+                    const dateB = new Date(b.publishDate || b.createdDate);
+                    return dateB - dateA;
+                });
+        }
+
+        // เก็บผลลัพธ์ลง cache
+        searchCache.set(cacheKey, [...filteredNewsletters]);
+
+        // จำกัดขนาด search cache
+        if (searchCache.size > 20) {
+            const firstKey = searchCache.keys().next().value;
+            searchCache.delete(firstKey);
+        }
+
+        currentPage = 1;
+        displayNewsletters();
+        
+        perfMonitor.end('filter-newsletters');
+        
+        // Preload images สำหรับผลลัพธ์
+        imagePreloader.preloadVisibleImages(filteredNewsletters.slice(0, 12));
+        
+    }, 150);
 }
 
 function displayNewsletters() {
@@ -393,11 +863,19 @@ function displayNewsletterGrid(newsletters, containerId) {
     
     container.innerHTML = '';
 
-    newsletters.forEach(newsletter => {
+    // ⚡ ใช้ DocumentFragment สำหรับ performance
+    const fragment = document.createDocumentFragment();
+
+    newsletters.forEach((newsletter, index) => {
+        // ⚡ Lazy loading image
         const imageHtml = newsletter.images && newsletter.images.length > 0 
-            ? `<img src="${newsletter.images[0].thumbnailUrl || newsletter.images[0].url}" 
+            ? `<img data-src="${newsletter.images[0].thumbnailUrl || newsletter.images[0].url}" 
                    alt="${newsletter.images[0].alt || newsletter.title}" 
-                   class="newsletter-image w-full">`
+                   class="newsletter-image w-full lazy"
+                   style="background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); min-height: 200px;">
+               <div class="image-placeholder">
+                   <i class="fas fa-image text-gray-400 text-2xl"></i>
+               </div>`
             : `<div class="newsletter-image w-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
                    <i class="fas fa-newspaper text-4xl text-gray-400"></i>
                </div>`;
@@ -418,10 +896,12 @@ function displayNewsletterGrid(newsletters, containerId) {
 
         const card = document.createElement('div');
         card.className = 'card fade-in newsletter-card';
+        card.style.setProperty('--animation-delay', `${index * 0.1}s`);
+        
         card.innerHTML = `
             ${newsletter.featured ? '<div class="featured-badge"><i class="fas fa-star mr-1"></i> ข่าวเด่น</div>' : ''}
             ${shareButtonHtml}
-            <div class="relative overflow-hidden">
+            <div class="relative overflow-hidden image-container">
                 ${imageHtml}
             </div>
             <div class="p-6">
@@ -433,7 +913,6 @@ function displayNewsletterGrid(newsletters, containerId) {
                         <div>
                             <i class="fas fa-eye mr-1"></i> ${newsletter.views || 0}
                         </div>
-                        <!-- 🆕 แสดงยอดแชร์ -->
                         <div class="share-count">
                             <i class="fas fa-share-alt mr-1"></i> ${newsletter.shares || 0}
                         </div>
@@ -467,7 +946,20 @@ function displayNewsletterGrid(newsletters, containerId) {
             </div>
         `;
 
-        container.appendChild(card);
+        fragment.appendChild(card);
+    });
+
+    // ⚡ เพิ่มทุกการ์ดพร้อมกันแทนทีละใบ
+    container.appendChild(fragment);
+
+    // ⚡ เริ่ม lazy loading สำหรับรูปภาพ
+    const lazyImages = container.querySelectorAll('img.lazy');
+    lazyImages.forEach(img => lazyLoader.observe(img));
+
+    // ⚡ Trigger animation สำหรับการ์ดใหม่
+    requestAnimationFrame(() => {
+        const cards = container.querySelectorAll('.newsletter-card');
+        cards.forEach(card => card.classList.add('animate-in'));
     });
 }
 
@@ -530,7 +1022,8 @@ async function openNewsletterModal(newsletterId) {
     try {
         showLoading("กำลังโหลดเนื้อหา...");
         
-        const newsletter = await apiCall('getNewsletter', { id: newsletterId });
+        // ใช้ cached API call
+        const newsletter = await apiCallCached('getNewsletter', { id: newsletterId });
         
         if (newsletter) {
             displayNewsletterInModal(newsletter);
@@ -548,8 +1041,12 @@ async function openNewsletterModal(newsletterId) {
                 window.history.pushState({}, '', url);
             }
             
-            // Increment view count (fire and forget)
+            // Increment view count (fire and forget) - ไม่ใช้ cache
             apiCall('incrementView', { id: newsletterId }).catch(console.error);
+            
+            // Preload ข่าวที่เกี่ยวข้อง
+            preloadRelatedNewsletters(newsletter);
+            
         } else {
             showError('ไม่พบข่าวสารที่เลือก');
         }
@@ -560,6 +1057,21 @@ async function openNewsletterModal(newsletterId) {
         hideLoading();
         showError('ไม่สามารถโหลดข่าวสารได้');
     }
+}
+
+function preloadRelatedNewsletters(currentNewsletter) {
+    const related = allNewsletters
+        .filter(n => n.id !== currentNewsletter.id)
+        .filter(n => n.category === currentNewsletter.category || 
+                    (n.tags && currentNewsletter.tags && 
+                     n.tags.some(tag => currentNewsletter.tags.includes(tag))))
+        .slice(0, 5);
+    
+    related.forEach(newsletter => {
+        preloadManager.addToQueue(newsletter.id);
+    });
+    
+    setTimeout(() => preloadManager.startPreloading(), 500);
 }
 
 function displayNewsletterInModal(newsletter) {
@@ -588,7 +1100,6 @@ function displayNewsletterInModal(newsletter) {
                 <span><i class="fas fa-user mr-1"></i> ${newsletter.author}</span>
                 <span><i class="fas fa-calendar mr-1"></i> ${formatDate(newsletter.publishDate)}</span>
                 <span><i class="fas fa-eye mr-1"></i> ${newsletter.views || 0} ครั้ง</span>
-                <!-- 🆕 แสดงยอดแชร์ใน modal -->
                 <span class="share-count">
                     <i class="fas fa-share-alt mr-1"></i> ${newsletter.shares || 0} ครั้ง
                 </span>
@@ -616,7 +1127,6 @@ function displayNewsletterInModal(newsletter) {
     document.getElementById('modal-content').innerHTML = contentHtml;
 }
 
-// Quick share function for newsletter cards
 async function quickShareNewsletter(newsletterId) {
     try {
         if (!window.lineIntegration || !window.lineIntegration.isLoggedIn()) {
@@ -644,24 +1154,31 @@ async function quickShareNewsletter(newsletterId) {
 }
 
 function filterByTag(tagName) {
-    // ตั้งค่า tag filter
     const tagSelect = document.getElementById('tag-filter');
     if (tagSelect) {
         tagSelect.value = tagName;
     }
     
-    // รีเซ็ต filters อื่น
     document.getElementById('category-filter').value = '';
     document.getElementById('search-input').value = '';
     
-    // Close modal if open
     document.getElementById('newsletter-modal').classList.add('hidden');
     clearDirectArticleLink();
     
-    // Filter and scroll
-    filterNewsletters();
+    filterNewslettersWithQuickSearch();
     document.getElementById('main-content').scrollIntoView({ behavior: 'smooth' });
 }
+
+// DOMContentLoaded Event
+document.addEventListener('DOMContentLoaded', function() {
+    perfMonitor.start('app-init');
+    console.log('🚀 Starting Optimized Newsletter App...');
+    
+    checkDirectArticleLink();
+    initializeApp();
+    
+    perfMonitor.end('app-init');
+});
 
 // Global functions for onclick handlers
 window.openNewsletterModal = openNewsletterModal;
