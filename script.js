@@ -429,8 +429,14 @@ function displayNewsletterGrid(newsletters, containerId) {
                     <span class="category-badge">
                         <i class="fas fa-tag"></i> ${newsletter.category}
                     </span>
-                    <div class="text-xs text-gray-500">
-                        <i class="fas fa-eye mr-1"></i> ${newsletter.views || 0} ครั้ง
+                    <div class="flex items-center space-x-3 text-xs text-gray-500">
+                        <div>
+                            <i class="fas fa-eye mr-1"></i> ${newsletter.views || 0}
+                        </div>
+                        <!-- 🆕 แสดงยอดแชร์ -->
+                        <div class="share-count">
+                            <i class="fas fa-share-alt mr-1"></i> ${newsletter.shares || 0}
+                        </div>
                     </div>
                 </div>
                 
@@ -582,6 +588,10 @@ function displayNewsletterInModal(newsletter) {
                 <span><i class="fas fa-user mr-1"></i> ${newsletter.author}</span>
                 <span><i class="fas fa-calendar mr-1"></i> ${formatDate(newsletter.publishDate)}</span>
                 <span><i class="fas fa-eye mr-1"></i> ${newsletter.views || 0} ครั้ง</span>
+                <!-- 🆕 แสดงยอดแชร์ใน modal -->
+                <span class="share-count">
+                    <i class="fas fa-share-alt mr-1"></i> ${newsletter.shares || 0} ครั้ง
+                </span>
             </div>
             ${newsletter.subtitle ? `<p class="text-lg text-gray-600 mt-2">${newsletter.subtitle}</p>` : ''}
             ${newsletter.tags && newsletter.tags.length > 0 ? `
