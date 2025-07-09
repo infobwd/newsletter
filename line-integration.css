@@ -365,3 +365,138 @@
         animation: none;
     }
 }
+
+/* Share Count Display */
+.share-count {
+    color: #6b7280;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+}
+
+.share-count i {
+    color: #00B900; /* LINE Green */
+    transition: color 0.2s ease;
+}
+
+/* Share Count ในการ์ดข่าว */
+.newsletter-card .share-count {
+    transition: all 0.2s ease;
+}
+
+.newsletter-card:hover .share-count {
+    color: #374151;
+}
+
+.newsletter-card:hover .share-count i {
+    color: #00A000;
+}
+
+/* Share Count ใน Modal */
+.modal .share-count {
+    font-size: 0.875rem;
+    color: #4b5563;
+}
+
+.modal .share-count i {
+    color: #00B900;
+}
+
+/* Statistics Section ใน Modal (เพิ่มเติม) */
+.newsletter-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: #f9fafb;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.stat-item i {
+    color: #9ca3af;
+    transition: color 0.2s ease;
+}
+
+.stat-item.views i {
+    color: #3b82f6; /* Blue for views */
+}
+
+.stat-item.shares i {
+    color: #00B900; /* Green for shares */
+}
+
+.stat-item.category i {
+    color: #8b5cf6; /* Purple for category */
+}
+
+/* Hover effects */
+.stat-item:hover {
+    color: #374151;
+}
+
+.stat-item:hover i {
+    transform: scale(1.1);
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .newsletter-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .stat-item {
+        font-size: 0.75rem;
+    }
+    
+    .share-count {
+        font-size: 0.6875rem;
+    }
+}
+
+/* High Share Count Badge */
+.high-share-badge {
+    background: linear-gradient(135deg, #00B900 0%, #00A000 100%);
+    color: white;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    margin-left: 0.25rem;
+}
+
+/* สำหรับแสดง "กำลังมาแรง" เมื่อมีการแชร์มาก */
+.trending-indicator {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
