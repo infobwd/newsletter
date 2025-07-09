@@ -709,6 +709,19 @@ async function handleDirectArticleLink() {
     
     try {
         console.log('Opening direct article:', directArticleId);
+        
+        // 🆕 ถ้าเปิดจาก LIFF ให้รอ LINE integration พร้อมก่อน
+        if (isOpenedFromLiff() && window.lineIntegration) {
+            console.log('📱 Waiting for LINE integration to be ready...');
+            
+            // รอให้ LINE integration พร้อม
+            let attempts = 0;
+            while (!window.lineIntegration.isInitialized && attempts < 20) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+        }
+        
         await openNewsletterModal(directArticleId);
     } catch (error) {
         console.error('Failed to open direct article:', error);
@@ -1029,9 +1042,10 @@ async function openNewsletterModal(newsletterId) {
             displayNewsletterInModal(newsletter);
             document.getElementById('newsletter-modal').classList.remove('hidden');
             
-            // เซ็ต current newsletter สำหรับ LINE sharing
+            // 🆕 เซ็ต current newsletter สำหรับ LINE sharing ก่อนอื่น
             if (window.lineIntegration) {
                 window.lineIntegration.setCurrentNewsletter(newsletter);
+                console.log('📄 Newsletter set for LINE sharing:', newsletter.title);
             }
             
             // อัพเดต URL สำหรับ direct link
@@ -1040,6 +1054,13 @@ async function openNewsletterModal(newsletterId) {
                 url.searchParams.set('article', newsletterId);
                 window.history.pushState({}, '', url);
             }
+            
+            // 🆕 รอให้ modal render เสร็จแล้วค่อยอัพเดตปุ่มแชร์
+            setTimeout(() => {
+                if (window.lineIntegration) {
+                    window.lineIntegration.updateShareButtonVisibility();
+                }
+            }, 100);
             
             // Increment view count (fire and forget) - ไม่ใช้ cache
             apiCall('incrementView', { id: newsletterId }).catch(console.error);
@@ -1057,6 +1078,13 @@ async function openNewsletterModal(newsletterId) {
         hideLoading();
         showError('ไม่สามารถโหลดข่าวสารได้');
     }
+}
+
+// 🆕 เพิ่มฟังก์ชันเช็คว่าเปิดจาก LIFF หรือไม่
+function isOpenedFromLiff() {
+    return window.lineIntegration && 
+           window.lineIntegration.isInitialized && 
+           liff && liff.isInClient && liff.isInClient();
 }
 
 function preloadRelatedNewsletters(currentNewsletter) {
