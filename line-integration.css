@@ -500,3 +500,93 @@
         opacity: 0.8;
     }
 }
+
+
+/* 🔧 Modal Share Button Enhancements */
+#share-newsletter-btn {
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: scale(0.8);
+    pointer-events: none;
+}
+
+#share-newsletter-btn:not(.hidden) {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+/* Ensure button is visible when needed */
+.modal .share-newsletter-btn {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    background: linear-gradient(135deg, #00B900 0%, #00A000 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 185, 0, 0.2);
+}
+
+/* Loading state for share button */
+#share-newsletter-btn.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+#share-newsletter-btn.loading::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Modal header spacing */
+.modal-content .flex.justify-between.items-center {
+    gap: 1rem;
+}
+
+/* Responsive modal share button */
+@media (max-width: 640px) {
+    #share-newsletter-btn span {
+        display: none;
+    }
+    
+    #share-newsletter-btn {
+        padding: 0.5rem;
+        min-width: 44px;
+        justify-content: center;
+    }
+}
+
+/* LIFF-specific styles */
+.liff-client #share-newsletter-btn {
+    animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+
